@@ -1,0 +1,18 @@
+<<<<<<< HEAD
+# .gitignore
+=======
+>>>>>>> 26b038ac36df45f42f7290ce129612635eb6d7ef
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*.backup
+*.tfvars
+<<<<<<< HEAD
+=======
+!example.tfvars
+>>>>>>> 26b038ac36df45f42f7290ce129612635eb6d7ef
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
