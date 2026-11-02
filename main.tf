@@ -15,8 +15,6 @@ provider "aws" {
     dynamodb = "http://localhost:4566"
     lambda   = "http://localhost:4566"
     iam      = "http://localhost:4566"
-    ec2      = "http://localhost:4566"
-    rds      = "http://localhost:4566"
   }
 
   access_key = "test"
@@ -29,10 +27,19 @@ provider "aws" {
   s3_use_path_style = true
 }
 
-# --- Lesson 4: S3 Static Website ---
+variable "student_name" {
+  type        = string
+  description = "Short lowercase name used to prefix every resource"
+  default     = "student"
+
+  validation {
+    condition     = can(regex("^[a-z]{2,10}$", var.student_name))
+    error_message = "Student name must be 2-10 lowercase letters."
+  }
+}
 
 resource "aws_s3_bucket" "website" {
-  bucket = "my-course-website"
+  bucket = "${var.student_name}-course-website"
 }
 
 resource "aws_s3_bucket_versioning" "website" {
@@ -68,10 +75,8 @@ resource "aws_s3_object" "error" {
   content_type = "text/html"
 }
 
-# --- Lesson 5: DynamoDB + Lambda ---
-
 resource "aws_dynamodb_table" "items" {
-  name         = "CourseItems"
+  name         = "${var.student_name}-course-items"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
 
@@ -82,7 +87,7 @@ resource "aws_dynamodb_table" "items" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "lambda-role"
+  name = "${var.student_name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -95,105 +100,21 @@ resource "aws_iam_role" "lambda" {
 }
 
 resource "aws_lambda_function" "api" {
-  function_name = "items-api"
+  function_name = "${var.student_name}-items-api"
   role          = aws_iam_role.lambda.arn
   runtime       = "python3.12"
   handler       = "lambda_function.lambda_handler"
   filename      = "${path.module}/lambda.zip"
 }
 
-# --- Lesson 6: EC2 Instances ---
-
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023*-kernel-*-x86_64"]
-  }
+output "site_url" {
+  value = aws_s3_bucket_website_configuration.website.website_endpoint
 }
 
-resource "aws_key_pair" "lab" {
-  key_name   = "lab-key"
-  public_key = file("${path.module}/lab-key.pub")
+output "table_name" {
+  value = aws_dynamodb_table.items.name
 }
 
-resource "aws_security_group" "web" {
-  name        = "web-sg"
-  description = "Allow HTTP"
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_instance" "web" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t3.micro"
-  vpc_security_group_ids = [aws_security_group.web.id]
-  key_name               = aws_key_pair.lab.key_name
-
-  tags = {
-    Name = "test-web"
-  }
-}
-
-# --- Lesson 7: RDS Database ---
-
-resource "aws_db_instance" "postgres" {
-  identifier     = "student-postgres"
-  engine         = "postgres"
-  engine_version = "16.3"
-  instance_class = "db.t3.micro"
-
-  allocated_storage = 20
-  db_name           = "appdb"
-  username          = "admin"
-  password          = "StudentPass123!"
-
-  skip_final_snapshot = true
-}
-
-output "db_endpoint" {
-  value = aws_db_instance.postgres.endpoint
-}
-
-
-# --- Lesson 8: PHP + Apache on EC2 ---
-
-resource "aws_instance" "php" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t3.micro"
-  vpc_security_group_ids = [aws_security_group.web.id]
-
-  user_data = <<-USERDATA
-    #!/bin/bash
-    dnf install -y httpd php php-mysqlnd
-    cat > /var/www/html/index.php <<'PHP'
-    <?php
-    echo "<h1>Hello from PHP " . phpversion() . " on Apache</h1>";
-    ?>
-    PHP
-    mkdir -p /run/php-fpm
-    /usr/sbin/php-fpm --nodaemonize &
-    sleep 1
-    sed -i 's/^Listen 80$/Listen 8080/' /etc/httpd/conf/httpd.conf
-    /usr/sbin/httpd
-    echo "PHP-APP-READY" > /tmp/php-ready
-  USERDATA
-
-  tags = {
-    Name = "php-web"
-  }
+output "function_name" {
+  value = aws_lambda_function.api.function_name
 }
