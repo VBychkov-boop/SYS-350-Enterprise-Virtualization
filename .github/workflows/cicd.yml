@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: [cicd-floci]
 
-env:
-  AWS_ACCESS_KEY_ID: test
-  AWS_SECRET_ACCESS_KEY: test
-  AWS_DEFAULT_REGION: us-east-1
-  TF_VAR_student_name: student
-
 jobs:
   terraform:
     runs-on: ubuntu-latest
@@ -30,6 +24,9 @@ jobs:
 
       - name: Validate configuration
         run: terraform validate -no-color
+
+      - name: Build Lambda package
+        run: cd lambda && zip ../lambda.zip lambda_function.py
 
       - name: Start floci
         run: |
@@ -54,9 +51,6 @@ jobs:
       - name: Apply
         if: github.event_name == 'push'
         run: terraform apply -input=false -auto-approve tfplan
-
-      - name: Build Lambda package
-        run: cd lambda && zip ../lambda.zip lambda_function.py
 
       - name: Verify S3 website
         if: github.event_name == 'push'
