@@ -33,13 +33,13 @@ variable "student_name" {
   default     = "student"
 
   validation {
-    condition     = can(regex("^[a-z]{2,10}$", var.student_name))
+    condition     = can(regex("^[a-z]{2,10}$", var.student_nam))
     error_message = "Student name must be 2-10 lowercase letters."
   }
 }
 
 resource "aws_s3_bucket" "website" {
-  bucket = "${var.student_name}-course-website"
+  bucket = "${var.student_nam}-course-website"
 }
 
 resource "aws_s3_bucket_versioning" "website" {
@@ -76,7 +76,7 @@ resource "aws_s3_object" "error" {
 }
 
 resource "aws_dynamodb_table" "items" {
-  name         = "${var.student_name}-course-items"
+  name         = "${var.student_nam}-course-items"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
 
@@ -87,7 +87,7 @@ resource "aws_dynamodb_table" "items" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "${var.student_name}-lambda-role"
+  name = "${var.student_nam}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -100,7 +100,7 @@ resource "aws_iam_role" "lambda" {
 }
 
 resource "aws_lambda_function" "api" {
-  function_name = "${var.student_name}-items-api"
+  function_name = "${var.student_nam}-items-api"
   role          = aws_iam_role.lambda.arn
   runtime       = "python3.12"
   handler       = "lambda_function.lambda_handler"
